@@ -1,3 +1,4 @@
 streamlit
 html5lib
 beautifulsoup4
+matplotlib
