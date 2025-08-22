@@ -127,6 +127,27 @@ def assign_grades(team_scores):
         grades[team] = (score, grade)
     return grades
 
+
+def split_player_position(proj_df: pd.DataFrame):
+    """
+    Splits the combined 'Player' column into 'Player' and 'Position'.
+    Handles names with suffixes like Jr., III, etc.
+    """
+    def parse_name_pos(s):
+        tokens = s.strip().split()
+        pos_candidates = ['QB', 'RB', 'WR', 'TE', 'K', 'DST']
+        # find last token that matches position
+        for i in range(len(tokens)-1, -1, -1):
+            if tokens[i].upper() in pos_candidates:
+                pos = tokens[i].upper()
+                name = ' '.join(tokens[:i])
+                return pd.Series([name, pos])
+        # fallback if no position found
+        return pd.Series([s, None])
+    
+    proj_df[['Player', 'Position']] = proj_df['Player'].apply(parse_name_pos)
+    return proj_df
+
 # -------------------
 # Streamlit App
 # -------------------
@@ -172,12 +193,12 @@ if isinstance(proj_df.columns, pd.MultiIndex):
 
 st.dataframe(proj_df.head())
 
-# Now find key columns (they may have been renamed during flattening)
-# Usually "Player" is preserved; "FPTS" might be "FPTS" or "FantasyPoints" depending on FP
-possible_fpts_cols = [c for c in proj_df.columns if 'FPTS' in c.upper() or 'Fantasy' in c.upper()]
-fpts_col = possible_fpts_cols[0] if possible_fpts_cols else None
+proj_df = proj_df.rename(columns={'MISC_FPTS': 'FPTS','Unnamed: 0_level_0_Player':'Player'})
 
-proj_df = proj_df[['Player', fpts_col, 'Position']].rename(columns={fpts_col: 'FPTS'})
+proj_df = split_player_position(proj_df)
+
+st.dataframe(proj_df.head())
+
 # Example: extract FPTS and player name
 proj_df = proj_df[['Player', 'FPTS', 'Position']]
 proj_df = proj_df.dropna(subset=['FPTS']).copy()
