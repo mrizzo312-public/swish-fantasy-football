@@ -150,6 +150,7 @@ def split_player_team(proj_df: pd.DataFrame):
 
 st.title("💯 Draft Grades")
 
+# League IDs
 league_ids = {
     "1264083534415396864": None,
     "1264093436445741056": None,
@@ -157,25 +158,32 @@ league_ids = {
     "1264094054845513728": None,
 }
 
-# fetch actual league names from Sleeper
-for league_id in league_ids.keys():
+# Fetch actual league names from Sleeper
+for lid in league_ids.keys():
     try:
-        resp = requests.get(f"https://api.sleeper.app/v1/league/{league_id}")
+        resp = requests.get(f"https://api.sleeper.app/v1/league/{lid}")
         resp.raise_for_status()
         data = resp.json()
-        league_ids[league_id] = data.get("name", f"League {league_id}")
+        league_ids[lid] = data.get("name", f"League {lid}")
     except Exception as e:
-        league_ids[league_id] = f"League {league_id}"  # fallback if API fails
-        print(f"Error fetching league {league_id}: {e}")
+        league_ids[lid] = f"League {lid}"  # fallback if API fails
+        print(f"Error fetching league {lid}: {e}")
 
 # Show league names
 st.write("### Available Leagues")
-for name in league_ids.keys():
+for lid, name in league_ids.items():
     st.write(f"- {name}")
 
-# League selector
-selected_league_name = st.sidebar.selectbox("Select League", list(league_ids.keys()), format_func=lambda x: league_ids[x])
-league_id = league_ids[selected_league_name]
+# Sidebar selector: display league names, but store the ID
+selected_league_id = st.sidebar.selectbox(
+    "Select League",
+    list(league_ids.keys()),
+    format_func=lambda x: league_ids[x]  # show actual league name
+)
+
+# Use `selected_league_id` for all API calls
+# If you need the name as well:
+selected_league_name = league_ids[selected_league_id]
 
 # Fetch draft + league info
 league, scoring, roster_to_owner = get_league_data(league_id)
