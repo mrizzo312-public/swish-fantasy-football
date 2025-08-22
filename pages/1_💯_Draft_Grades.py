@@ -188,7 +188,7 @@ selected_league_name = league_ids[league_id]
 # Fetch draft + league info
 league, scoring, roster_to_owner = get_league_data(league_id)
 draft_id, picks = get_draft(league_id)
-
+st.markdown(draft_id)
 if not draft_id:
     st.error("No draft found yet for this league.")
     st.stop()
