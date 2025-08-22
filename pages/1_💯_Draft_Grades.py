@@ -83,32 +83,29 @@ def calculate_fantasy_points(player_stats: dict, scoring: dict) -> float:
             points += value * scoring[stat]
     return points
 
-def calculate_dynamic_vorp(projections: list, scoring: dict):
-    """Calculate VORP using dynamic replacement levels (QB13, RB25, WR37, TE13)."""
-    replacement_targets = {"QB": 13, "RB": 25, "WR": 37, "TE": 13}
-    by_position = {}
+def calculate_dynamic_vorp(proj_df: pd.DataFrame):
+    """
+    Calculate VORP using dynamic replacement levels:
+    QB13, RB25, WR37, TE13 based on FPTS projections.
+    
+    proj_df: DataFrame with columns ['Player', 'FPTS', 'Position']
+    Returns: dict mapping player name -> VORP
+    """
+    replacement_targets = {'QB': 13, 'RB': 25, 'WR': 37, 'TE': 13}
     vorp = {}
 
-    # bucket projections by position
-    for player in projections:
-        pos = player.get("position")
-        if not pos:
-            continue
-        if pos not in by_position:
-            by_position[pos] = []
-        pts = calculate_fantasy_points(player, scoring)
-        by_position[pos].append((player["player_name"], pts))
+    # Group by position
+    for pos, group in proj_df.groupby('Position'):
+        group_sorted = group.sort_values('FPTS', ascending=False).reset_index(drop=True)
+        cutoff_idx = replacement_targets.get(pos, len(group_sorted)) - 1
+        cutoff_idx = min(cutoff_idx, len(group_sorted) - 1)
+        replacement_value = group_sorted.loc[cutoff_idx, 'FPTS']
 
-    # compute VORP
-    for pos, players in by_position.items():
-        players.sort(key=lambda x: x[1], reverse=True)
-        cutoff = replacement_targets.get(pos, len(players)) - 1
-        cutoff = min(cutoff, len(players) - 1)
-        replacement_val = players[cutoff][1]
-        for name, pts in players:
-            vorp[name] = pts - replacement_val
+        for _, row in group_sorted.iterrows():
+            vorp[row['Player']] = row['FPTS'] - replacement_value
 
     return vorp
+
 
 def assign_grades(team_scores):
     values = list(team_scores.values())
@@ -134,7 +131,7 @@ def assign_grades(team_scores):
 # Streamlit App
 # -------------------
 
-st.title("🏈 Draft Grades")
+st.title("💯 Draft Grades")
 
 league_ids = {
     "League 1": "1264083534415396864",
@@ -165,6 +162,8 @@ proj_df = get_all_projections()
 if proj_df.empty:
     st.error("Failed to fetch projections from FantasyPros.")
     st.stop()
+
+st.dataframe(proj_df.head())
 
 # Example: extract FPTS and player name
 proj_df = proj_df[['Player', 'FPTS', 'Position']]
