@@ -128,24 +128,20 @@ def assign_grades(team_scores):
     return grades
 
 
-def split_player_position(proj_df: pd.DataFrame):
+def split_player_team(proj_df: pd.DataFrame):
     """
-    Splits the combined 'Player' column into 'Player' and 'Position'.
+    Splits the combined 'Player' column into 'Player' and 'Team'.
     Handles names with suffixes like Jr., III, etc.
     """
-    def parse_name_pos(s):
+    def parse_name_team(s):
         tokens = s.strip().split()
-        pos_candidates = ['QB', 'RB', 'WR', 'TE', 'K', 'DST']
-        # find last token that matches position
-        for i in range(len(tokens)-1, -1, -1):
-            if tokens[i].upper() in pos_candidates:
-                pos = tokens[i].upper()
-                name = ' '.join(tokens[:i])
-                return pd.Series([name, pos])
-        # fallback if no position found
-        return pd.Series([s, None])
+        if len(tokens) < 2:
+            return pd.Series([s, None])
+        team = tokens[-1].upper()  # last token is team
+        name = ' '.join(tokens[:-1])
+        return pd.Series([name, team])
     
-    proj_df[['Player', 'Position']] = proj_df['Player'].apply(parse_name_pos)
+    proj_df[['Player', 'Team']] = proj_df['Player'].apply(parse_name_team)
     return proj_df
 
 # -------------------
@@ -195,7 +191,7 @@ st.dataframe(proj_df.head())
 
 proj_df = proj_df.rename(columns={'MISC_FPTS': 'FPTS','Unnamed: 0_level_0_Player':'Player'})
 
-proj_df = split_player_position(proj_df)
+proj_df = split_player_team(proj_df)
 
 st.dataframe(proj_df.head())
 
