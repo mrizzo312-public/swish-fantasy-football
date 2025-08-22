@@ -170,6 +170,8 @@ if isinstance(proj_df.columns, pd.MultiIndex):
     # Flatten: combine top + bottom level, separated by '_'
     proj_df.columns = ['_'.join(filter(None, col)).strip() for col in proj_df.columns.values]
 
+st.dataframe(proj_df.head())
+
 # Now find key columns (they may have been renamed during flattening)
 # Usually "Player" is preserved; "FPTS" might be "FPTS" or "FantasyPoints" depending on FP
 possible_fpts_cols = [c for c in proj_df.columns if 'FPTS' in c.upper() or 'Fantasy' in c.upper()]
