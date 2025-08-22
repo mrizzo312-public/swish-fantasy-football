@@ -1,58 +1,71 @@
-# app.py
 import streamlit as st
 import requests
+import pandas as pd
 
-st.set_page_config(page_title="Sleeper League Analyzer", layout="wide")
-st.title("🏈 Sleeper League Analyzer")
+st.title("🏈 Swish League Standings")
 
-# League IDs
-league_ids = [
-    "1264083534415396864",
-    "1264093436445741056",
-    "1264093787064377344",
-    "1264094054845513728",
-]
+# ------------------------
+# League selection
+# ------------------------
+league_ids = {
+    "1264083534415396864": None,
+    "1264093436445741056": None,
+    "1264093787064377344": None,
+    "1264094054845513728": None,
+}
 
-# Fetch league names from Sleeper
-league_names = []
-league_info_map = {}  # store full league info
-for lid in league_ids:
+# Fetch league names
+for lid in league_ids.keys():
     try:
-        res = requests.get(f"https://api.sleeper.app/v1/league/{lid}")
-        data = res.json()
-        league_names.append(data["name"])
-        league_info_map[data["name"]] = data
-    except Exception as e:
-        league_names.append(f"League {lid} (Error fetching)")
-        league_info_map[f"League {lid} (Error fetching)"] = {"league_id": lid}
+        resp = requests.get(f"https://api.sleeper.app/v1/league/{lid}")
+        resp.raise_for_status()
+        data = resp.json()
+        league_ids[lid] = data.get("name", f"League {lid}")
+    except:
+        league_ids[lid] = f"League {lid}"
 
-# Display all league names
-st.subheader("All Leagues:")
-for name in league_names:
-    st.write(f"- {name}")
+league_id = st.sidebar.selectbox(
+    "Select League",
+    list(league_ids.keys()),
+    format_func=lambda x: league_ids[x]
+)
+selected_league_name = league_ids[league_id]
 
-# Dropdown to select league by name
-selected_league_name = st.selectbox("Select a League:", league_names)
-selected_league = league_info_map[selected_league_name]
-league_id = selected_league["league_id"]
+# ------------------------
+# Fetch rosters + users
+# ------------------------
+league_resp = requests.get(f"https://api.sleeper.app/v1/league/{league_id}").json()
+users = requests.get(f"https://api.sleeper.app/v1/league/{league_id}/users").json()
+rosters = requests.get(f"https://api.sleeper.app/v1/league/{league_id}/rosters").json()
 
-# Fetch current standings
-try:
-    rosters_res = requests.get(f"https://api.sleeper.app/v1/league/{league_id}/rosters")
-    users_res = requests.get(f"https://api.sleeper.app/v1/league/{league_id}/users")
+# Map roster_id -> display_name
+roster_to_owner = {}
+for roster in rosters:
+    roster_id = roster["roster_id"]
+    owner_id = roster["owner_id"]
+    user = next((u for u in users if u["user_id"] == owner_id), None)
+    roster_to_owner[roster_id] = user.get("display_name", f"Team {roster_id}") if user else f"Team {roster_id}"
 
-    rosters = rosters_res.json()
-    users = users_res.json()
+# ------------------------
+# Build table data
+# ------------------------
+table_data = []
+for roster in rosters:
+    owner = roster_to_owner[roster["roster_id"]]
+    wins = roster.get("settings", {}).get("wins", 0)
+    losses = roster.get("settings", {}).get("losses", 0)
+    pf = roster.get("settings", {}).get("fpts", 0.0)
+    pa = roster.get("settings", {}).get("fpts_against", 0.0)  # Points Against
+    table_data.append({
+        "Team Name": owner,
+        "Wins": wins,
+        "Losses": losses,
+        "Points For": round(pf, 2),
+        "Points Against": round(pa, 2)
+    })
 
-    user_map = {user["user_id"]: user["display_name"] for user in users}
+df = pd.DataFrame(table_data)
+df = df.sort_values(["Wins", "Points For"], ascending=[False, False]).reset_index(drop=True)
 
-    # Sort by points if available
-    standings = sorted(rosters, key=lambda r: r.get("settings", {}).get("fpts", 0), reverse=True)
-
-    st.subheader(f"Current Standings - {selected_league_name}")
-    for idx, roster in enumerate(standings, start=1):
-        owner_name = user_map.get(roster["owner_id"], "Unknown")
-        points = roster.get("settings", {}).get("fpts", 0)
-        st.write(f"{idx}. {owner_name} — {points} points")
-except Exception as e:
-    st.error(f"Error fetching standings: {e}")
+st.subheader(f"Standings — {selected_league_name}")
+st.dataframe(df, use_container_width=True)
