@@ -151,11 +151,22 @@ def split_player_team(proj_df: pd.DataFrame):
 st.title("💯 Draft Grades")
 
 league_ids = {
-    "League 1": "1264083534415396864",
-    "League 2": "1264093436445741056",
-    "League 3": "1264093787064377344",
-    "League 4": "1264094054845513728",
+    "1264083534415396864": None,
+    "1264093436445741056": None,
+    "1264093787064377344": None,
+    "1264094054845513728": None,
 }
+
+# fetch actual league names from Sleeper
+for league_id in league_ids.keys():
+    try:
+        resp = requests.get(f"https://api.sleeper.app/v1/league/{league_id}")
+        resp.raise_for_status()
+        data = resp.json()
+        league_ids[league_id] = data.get("name", f"League {league_id}")
+    except Exception as e:
+        league_ids[league_id] = f"League {league_id}"  # fallback if API fails
+        print(f"Error fetching league {league_id}: {e}")
 
 # Show league names
 st.write("### Available Leagues")
@@ -163,12 +174,14 @@ for name in league_ids.keys():
     st.write(f"- {name}")
 
 # League selector
-selected_league_name = st.sidebar.selectbox("Select League", list(league_ids.keys()))
+selected_league_name = st.sidebar.selectbox("Select League", list(league_ids.keys()), format_func=lambda x: league_ids[x])
 league_id = league_ids[selected_league_name]
 
 # Fetch draft + league info
 league, scoring, roster_to_owner = get_league_data(league_id)
 draft_id, picks = get_draft(league_id)
+
+st.markdown(scoring)
 
 if not draft_id:
     st.warning("No draft found yet for this league.")
