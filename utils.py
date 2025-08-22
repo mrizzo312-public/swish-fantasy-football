@@ -148,3 +148,48 @@ def get_league_names(league_ids: dict):
         except:
             league_ids[lid] = f"League {lid}"
     return league_ids
+
+
+def get_draft_grades(league_id: str) -> pd.DataFrame:
+    """
+    Returns a DataFrame with draft scores per team:
+    Columns: ['Owner', 'Draft Score']
+    """
+    # Fetch league + roster info
+    league, scoring, roster_to_owner = get_league_data(league_id)
+    draft_id, picks, draft_time = get_draft(league_id)
+    if not picks:
+        return pd.DataFrame()
+
+    # Get projections
+    proj_df = get_all_projections()
+    if proj_df.empty:
+        return pd.DataFrame()
+
+    # Flatten multi-level columns if needed
+    if isinstance(proj_df.columns, pd.MultiIndex):
+        proj_df.columns = ['_'.join(filter(None, col)).strip() for col in proj_df.columns.values]
+
+    proj_df = proj_df.rename(columns={'MISC_FPTS': 'FPTS','Unnamed: 0_level_0_Player':'Player'})
+    proj_df = split_player_team(proj_df)
+    proj_df = proj_df[['Player', 'FPTS', 'Position']].dropna(subset=['FPTS'])
+    proj_df['FPTS'] = proj_df['FPTS'].astype(float)
+
+    vorp = calculate_dynamic_vorp(proj_df)
+
+    # Tally team draft scores
+    team_scores = {}
+    for pick in picks:
+        player_name = pick.get("metadata", {}).get("first_name", "") + " " + pick.get("metadata", {}).get("last_name", "")
+        roster_id = pick["roster_id"]
+        value = vorp.get(player_name, 0)
+        team_scores[roster_id] = team_scores.get(roster_id, 0) + value
+
+    # Build DataFrame
+    results = []
+    for roster_id, score in team_scores.items():
+        owner_name = roster_to_owner.get(roster_id, f"Team {roster_id}")
+        results.append({"Owner": owner_name, "Draft Score": score})
+
+    df = pd.DataFrame(results)
+    return df
