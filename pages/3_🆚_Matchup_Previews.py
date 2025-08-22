@@ -8,7 +8,7 @@ import sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from utils import (
     get_league_data, get_league_names, get_standings, get_draft_grades,
-    get_all_projections, calculate_dynamic_vorp, split_player_team
+    get_all_projections, calculate_dynamic_vorp, split_player_team, get_player_map
 )
 
 st.title("🆚 Matchup Previews")
@@ -68,19 +68,7 @@ if matchups.empty:
 # ------------------------
 # Load or fetch player ID → name mapping
 # ------------------------
-PLAYER_CSV = "player_ids.csv"
-
-if os.path.exists(PLAYER_CSV):
-    player_df = pd.read_csv(PLAYER_CSV)
-else:
-    player_resp = requests.get("https://api.sleeper.app/v1/players/nfl").json()
-    player_df = pd.DataFrame.from_dict(player_resp, orient="index")
-    player_df = player_df[['full_name']]
-    player_df.reset_index(inplace=True)
-    player_df.rename(columns={"index":"player_id", "full_name":"player_name"}, inplace=True)
-    player_df.to_csv(PLAYER_CSV, index=False)
-
-player_map = dict(zip(player_df["player_id"], player_df["player_name"]))
+player_map = get_player_map("player_ids.csv")
 
 # ------------------------
 # Identify matchup of the week

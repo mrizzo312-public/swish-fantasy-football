@@ -193,3 +193,30 @@ def get_draft_grades(league_id: str) -> pd.DataFrame:
 
     df = pd.DataFrame(results)
     return df
+
+# ------------------------
+# Player metadata helper
+# ------------------------
+def get_player_map(csv_path="player_ids.csv") -> dict:
+    """
+    Returns a dictionary mapping Sleeper player_id -> player_name.
+    Saves locally to CSV to avoid repeated API calls.
+    """
+    if os.path.exists(csv_path):
+        player_df = pd.read_csv(csv_path)
+    else:
+        try:
+            resp = requests.get("https://api.sleeper.app/v1/players/nfl")
+            resp.raise_for_status()
+            data = resp.json()
+            player_df = pd.DataFrame.from_dict(data, orient="index")
+            player_df = player_df[['full_name']]
+            player_df.reset_index(inplace=True)
+            player_df.rename(columns={"index":"player_id", "full_name":"player_name"}, inplace=True)
+            player_df.to_csv(csv_path, index=False)
+        except Exception as e:
+            st.error(f"Failed to fetch player metadata: {e}")
+            return {}
+
+    return dict(zip(player_df["player_id"], player_df["player_name"]))
+
