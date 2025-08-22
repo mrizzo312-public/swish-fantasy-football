@@ -1,96 +1,214 @@
 import streamlit as st
 import requests
-from datetime import datetime
+import numpy as np
+import pandas as pd
 
-st.title("💯 Draft Grades")
-st.set_page_config(page_title="Draft Grades", page_icon="💯", layout="wide")
+# -------------------
+# Helper Functions
+# -------------------
 
-# League IDs
-league_ids = [
-    "1264083534415396864",
-    "1264093436445741056",
-    "1264093787064377344",
-    "1264094054845513728",
-]
+def get_league_data(league_id: str):
+    """Fetch league metadata (name, scoring, users, rosters)."""
+    league = requests.get(f"https://api.sleeper.app/v1/league/{league_id}").json()
+    users = requests.get(f"https://api.sleeper.app/v1/league/{league_id}/users").json()
+    rosters = requests.get(f"https://api.sleeper.app/v1/league/{league_id}/rosters").json()
 
-# Fetch league names
-league_names = []
-league_info_map = {}
-for lid in league_ids:
-    try:
-        res = requests.get(f"https://api.sleeper.app/v1/league/{lid}")
-        data = res.json()
-        league_names.append(data["name"])
-        league_info_map[data["name"]] = data
-    except Exception as e:
-        league_names.append(f"League {lid} (Error fetching)")
-        league_info_map[f"League {lid} (Error fetching)"] = {"league_id": lid}
-
-# Sidebar league selector
-selected_league_name = st.sidebar.selectbox("Select a League:", league_names)
-selected_league = league_info_map[selected_league_name]
-league_id = selected_league["league_id"]
-
-# Fetch draft data
-try:
-    draft_res = requests.get(f"https://api.sleeper.app/v1/league/{league_id}/drafts")
-    draft_data = draft_res.json()
-    
-    if not draft_data:
-        st.warning("No draft has been scheduled for this league yet.")
-    else:
-        draft = draft_data[0]  # Take first draft
-        if draft["status"] != "complete":
-            # Draft not yet occurred
-            draft_time = draft.get("drafted_at", draft.get("start_time", None))
-            if draft_time:
-                draft_dt = datetime.fromtimestamp(draft_time)
-                st.info(f"Draft has not yet occurred. Scheduled time: {draft_dt.strftime('%Y-%m-%d %H:%M:%S')}")
-            else:
-                st.info("Draft has not yet occurred and time is not available.")
+    # Map roster_id -> display name
+    roster_to_owner = {}
+    for roster in rosters:
+        roster_id = roster["roster_id"]
+        owner_id = roster["owner_id"]
+        user = next((u for u in users if u["user_id"] == owner_id), None)
+        if user:
+            display_name = user.get("display_name", "Unknown")
+            roster_to_owner[roster_id] = display_name
         else:
-            # Draft complete — analyze picks
-            rosters_res = requests.get(f"https://api.sleeper.app/v1/league/{league_id}/rosters")
-            users_res = requests.get(f"https://api.sleeper.app/v1/league/{league_id}/users")
-            rosters = rosters_res.json()
-            users = users_res.json()
-            user_map = {user["user_id"]: user["display_name"] for user in users}
+            roster_to_owner[roster_id] = f"Team {roster_id}"
 
-            picks = draft.get("draft_picks", [])
+    return league, league.get("scoring_settings", {}), roster_to_owner
 
-            # Simple scoring: earlier pick of top-ranked player = better
-            # We'll give a mock letter grade based on points scored by roster in draft order
-            # (can refine with position weighting later)
-            roster_scores = {r["roster_id"]: 0 for r in rosters}
-            roster_picks = {r["roster_id"]: [] for r in rosters}
+def get_draft(league_id: str):
+    draft_resp = requests.get(f"https://api.sleeper.app/v1/league/{league_id}/drafts").json()
+    if not draft_resp:
+        return None, None
+    draft_id = draft_resp[0]["draft_id"]
+    picks = requests.get(f"https://api.sleeper.app/v1/draft/{draft_id}/picks").json()
+    return draft_id, picks
 
-            for pick in picks:
-                roster_id = pick["roster_id"]
-                # Use pick slot as mock score (lower pick number = better)
-                roster_scores[roster_id] += 1 / pick["draft_slot"]
-                roster_picks[roster_id].append(pick)
+import pandas as pd
+import requests
+import streamlit as st
 
-            # Rank rosters by score
-            ranked_rosters = sorted(roster_scores.items(), key=lambda x: x[1], reverse=True)
+def fetch_fp_projections(position: str) -> pd.DataFrame:
+    """
+    Fetch FantasyPros seasonal projections table for a given position
+    using html5lib parser to avoid lxml dependency.
+    """
+    url = f"https://www.fantasypros.com/nfl/projections/{position}.php?week=draft"
+    r = requests.get(url)
+    r.raise_for_status()
 
-            st.subheader(f"Draft Grades - {selected_league_name}")
-            for idx, (roster_id, score) in enumerate(ranked_rosters, start=1):
-                # Letter grade: simple heuristic
-                if idx == 1:
-                    grade = "A+"
-                elif idx == len(ranked_rosters):
-                    grade = "D"
-                else:
-                    grade = ["A", "B+", "B", "C+", "C", "C-"][min(idx-1,5)]
+    # Use html5lib to parse HTML tables
+    tables = pd.read_html(r.text, flavor='html5lib')
+    if not tables:
+        st.warning(f"No tables found for {position.upper()} projections.")
+        return pd.DataFrame()
+    
+    df = tables[0]
+    df['Position'] = position.upper()
+    return df
 
-                roster_name = user_map.get(roster_id, f"Team {roster_id}")
-                st.markdown(f"**{idx}. {roster_name} — Grade: {grade}**")
-                
-                # Best and worst pick
-                picks_sorted = sorted(roster_picks[roster_id], key=lambda x: x["draft_slot"])
-                if picks_sorted:
-                    best_pick = picks_sorted[0]["player_id"]
-                    worst_pick = picks_sorted[-1]["player_id"]
-                    st.write(f"Best pick: {best_pick}, Worst pick: {worst_pick}")
-except Exception as e:
-    st.error(f"Error fetching draft data: {e}")
+def get_all_projections() -> pd.DataFrame:
+    """
+    Fetch projections for all main positions (QB, RB, WR, TE)
+    and combine into a single DataFrame.
+    """
+    dfs = []
+    for pos in ['qb', 'rb', 'wr', 'te']:
+        try:
+            df = fetch_fp_projections(pos)
+            if not df.empty:
+                dfs.append(df)
+        except Exception as e:
+            st.error(f"Error fetching {pos.upper()} projections: {e}")
+    return pd.concat(dfs, ignore_index=True) if dfs else pd.DataFrame()
+
+
+
+def calculate_fantasy_points(player_stats: dict, scoring: dict) -> float:
+    """Apply league scoring settings to player stats."""
+    points = 0
+    for stat, value in player_stats.items():
+        if stat in scoring:
+            points += value * scoring[stat]
+    return points
+
+def calculate_dynamic_vorp(projections: list, scoring: dict):
+    """Calculate VORP using dynamic replacement levels (QB13, RB25, WR37, TE13)."""
+    replacement_targets = {"QB": 13, "RB": 25, "WR": 37, "TE": 13}
+    by_position = {}
+    vorp = {}
+
+    # bucket projections by position
+    for player in projections:
+        pos = player.get("position")
+        if not pos:
+            continue
+        if pos not in by_position:
+            by_position[pos] = []
+        pts = calculate_fantasy_points(player, scoring)
+        by_position[pos].append((player["player_name"], pts))
+
+    # compute VORP
+    for pos, players in by_position.items():
+        players.sort(key=lambda x: x[1], reverse=True)
+        cutoff = replacement_targets.get(pos, len(players)) - 1
+        cutoff = min(cutoff, len(players) - 1)
+        replacement_val = players[cutoff][1]
+        for name, pts in players:
+            vorp[name] = pts - replacement_val
+
+    return vorp
+
+def assign_grades(team_scores):
+    values = list(team_scores.values())
+    mean = np.mean(values)
+    std = np.std(values) if np.std(values) > 0 else 1
+    grades = {}
+    for team, score in team_scores.items():
+        z = (score - mean) / std
+        if z > 1.0:
+            grade = "A"
+        elif z > 0.5:
+            grade = "B"
+        elif z > -0.5:
+            grade = "C"
+        elif z > -1.0:
+            grade = "D"
+        else:
+            grade = "F"
+        grades[team] = (score, grade)
+    return grades
+
+# -------------------
+# Streamlit App
+# -------------------
+
+st.title("🏈 Draft Grades")
+
+league_ids = {
+    "League 1": "1264083534415396864",
+    "League 2": "1264093436445741056",
+    "League 3": "1264093787064377344",
+    "League 4": "1264094054845513728",
+}
+
+# Show league names
+st.write("### Available Leagues")
+for name in league_ids.keys():
+    st.write(f"- {name}")
+
+# League selector
+selected_league_name = st.sidebar.selectbox("Select League", list(league_ids.keys()))
+league_id = league_ids[selected_league_name]
+
+# Fetch draft + league info
+league, scoring, roster_to_owner = get_league_data(league_id)
+draft_id, picks = get_draft(league_id)
+
+if not draft_id:
+    st.warning("No draft found yet for this league.")
+    st.stop()
+
+# Fetch projections + calculate VORP
+proj_df = get_all_projections()
+if proj_df.empty:
+    st.error("Failed to fetch projections from FantasyPros.")
+    st.stop()
+
+# Example: extract FPTS and player name
+proj_df = proj_df[['Player', 'FPTS', 'Position']]
+proj_df = proj_df.dropna(subset=['FPTS']).copy()
+proj_df['FPTS'] = proj_df['FPTS'].astype(float)
+
+vorp = calculate_dynamic_vorp(proj_df, scoring)
+
+# Tally team draft scores
+team_scores = {}
+team_picks = {}
+
+for pick in picks:
+    player_name = pick.get("metadata", {}).get("first_name", "") + " " + pick.get("metadata", {}).get("last_name", "")
+    roster_id = pick["roster_id"]
+
+    value = vorp.get(player_name, 0)
+
+    if roster_id not in team_scores:
+        team_scores[roster_id] = 0
+        team_picks[roster_id] = []
+    team_scores[roster_id] += value
+    team_picks[roster_id].append((player_name, value))
+
+grades = assign_grades(team_scores)
+
+# Build results table
+results = []
+for roster_id, (score, grade) in grades.items():
+    owner_name = roster_to_owner.get(roster_id, f"Team {roster_id}")
+    best_pick = max(team_picks[roster_id], key=lambda x: x[1], default=(None, 0))
+    worst_pick = min(team_picks[roster_id], key=lambda x: x[1], default=(None, 0))
+
+    results.append({
+        "Owner": owner_name,
+        "Score": round(score, 1),
+        "Grade": grade,
+        "Best Pick": f"{best_pick[0]} (+{round(best_pick[1],1)})" if best_pick[0] else "-",
+        "Worst Pick": f"{worst_pick[0]} ({round(worst_pick[1],1)})" if worst_pick[0] else "-"
+    })
+
+df = pd.DataFrame(results)
+df = df.sort_values("Score", ascending=False).reset_index(drop=True)
+df.index = df.index + 1  # Rank starting at 1
+
+st.subheader(f"Draft Grades — {selected_league_name}")
+st.dataframe(df, use_container_width=True)
