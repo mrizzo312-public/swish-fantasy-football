@@ -165,6 +165,17 @@ if proj_df.empty:
 
 st.dataframe(proj_df.head())
 
+# If proj_df has multi-level columns
+if isinstance(proj_df.columns, pd.MultiIndex):
+    # Flatten: combine top + bottom level, separated by '_'
+    proj_df.columns = ['_'.join(filter(None, col)).strip() for col in proj_df.columns.values]
+
+# Now find key columns (they may have been renamed during flattening)
+# Usually "Player" is preserved; "FPTS" might be "FPTS" or "FantasyPoints" depending on FP
+possible_fpts_cols = [c for c in proj_df.columns if 'FPTS' in c.upper() or 'Fantasy' in c.upper()]
+fpts_col = possible_fpts_cols[0] if possible_fpts_cols else None
+
+proj_df = proj_df[['Player', fpts_col, 'Position']].rename(columns={fpts_col: 'FPTS'})
 # Example: extract FPTS and player name
 proj_df = proj_df[['Player', 'FPTS', 'Position']]
 proj_df = proj_df.dropna(subset=['FPTS']).copy()
