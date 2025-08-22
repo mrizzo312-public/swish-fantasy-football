@@ -175,7 +175,7 @@ for lid, name in league_ids.items():
     st.write(f"- {name}")
 
 # Sidebar selector: display league names, but store the ID
-selected_league_id = st.sidebar.selectbox(
+league_id = st.sidebar.selectbox(
     "Select League",
     list(league_ids.keys()),
     format_func=lambda x: league_ids[x]  # show actual league name
@@ -183,7 +183,7 @@ selected_league_id = st.sidebar.selectbox(
 
 # Use `selected_league_id` for all API calls
 # If you need the name as well:
-selected_league_name = league_ids[selected_league_id]
+selected_league_name = league_ids[league_id]
 
 # Fetch draft + league info
 league, scoring, roster_to_owner = get_league_data(league_id)
