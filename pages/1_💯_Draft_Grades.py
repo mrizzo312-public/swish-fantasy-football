@@ -215,7 +215,7 @@ proj_df = proj_df[['Player', 'FPTS', 'Position']]
 proj_df = proj_df.dropna(subset=['FPTS']).copy()
 proj_df['FPTS'] = proj_df['FPTS'].astype(float)
 
-vorp = calculate_dynamic_vorp(proj_df, scoring)
+vorp = calculate_dynamic_vorp(proj_df)
 
 # Tally team draft scores
 team_scores = {}
