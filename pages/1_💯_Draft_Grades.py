@@ -189,8 +189,6 @@ selected_league_name = league_ids[league_id]
 league, scoring, roster_to_owner = get_league_data(league_id)
 draft_id, picks = get_draft(league_id)
 
-st.markdown(scoring)
-
 if not draft_id:
     st.warning("No draft found yet for this league.")
     st.stop()
@@ -251,6 +249,7 @@ for roster_id, (score, grade) in grades.items():
     })
 
 df = pd.DataFrame(results)
+st.dataframe(df)
 df = df.sort_values("Score", ascending=False).reset_index(drop=True)
 df.index = df.index + 1  # Rank starting at 1
 
