@@ -180,20 +180,14 @@ if proj_df.empty:
     st.error("Failed to fetch projections from FantasyPros.")
     st.stop()
 
-st.dataframe(proj_df.head())
-
 # If proj_df has multi-level columns
 if isinstance(proj_df.columns, pd.MultiIndex):
     # Flatten: combine top + bottom level, separated by '_'
     proj_df.columns = ['_'.join(filter(None, col)).strip() for col in proj_df.columns.values]
 
-st.dataframe(proj_df.head())
-
 proj_df = proj_df.rename(columns={'MISC_FPTS': 'FPTS','Unnamed: 0_level_0_Player':'Player'})
 
 proj_df = split_player_team(proj_df)
-
-st.dataframe(proj_df.head())
 
 # Example: extract FPTS and player name
 proj_df = proj_df[['Player', 'FPTS', 'Position']]
