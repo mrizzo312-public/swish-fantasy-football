@@ -2,6 +2,7 @@ import streamlit as st
 import requests
 import numpy as np
 import pandas as pd
+import datetime
 
 # -------------------
 # Helper Functions
@@ -27,17 +28,38 @@ def get_league_data(league_id: str):
 
     return league, league.get("scoring_settings", {}), roster_to_owner
 
-def get_draft(league_id: str):
-    draft_resp = requests.get(f"https://api.sleeper.app/v1/league/{league_id}/drafts").json()
-    if not draft_resp:
-        return None, None
-    draft_id = draft_resp[0]["draft_id"]
-    picks = requests.get(f"https://api.sleeper.app/v1/draft/{draft_id}/picks").json()
-    return draft_id, picks
 
-import pandas as pd
-import requests
-import streamlit as st
+def get_draft(league_id):
+    """
+    Fetch draft ID, picks, and draft time for a given Sleeper league.
+    """
+    try:
+        resp = requests.get(f"https://api.sleeper.app/v1/league/{league_id}/drafts")
+        resp.raise_for_status()
+        drafts = resp.json()
+        if not drafts:
+            return None, [], None
+
+        draft = drafts[0]  # usually only one draft per league
+        draft_id = draft.get("draft_id")
+        draft_time = None
+
+        # draft time is in settings.start_time (ms since epoch)
+        start_ms = draft.get("settings", {}).get("start_time")
+        if start_ms:
+            draft_time = datetime.datetime.fromtimestamp(start_ms / 1000)
+
+        # fetch picks if draft already exists
+        picks = []
+        if draft_id:
+            picks_resp = requests.get(f"https://api.sleeper.app/v1/draft/{draft_id}/picks")
+            if picks_resp.ok:
+                picks = picks_resp.json()
+
+        return draft_id, picks, draft_time
+    except Exception as e:
+        print(f"Error fetching draft for league {league_id}: {e}")
+        return None, [], None
 
 def fetch_fp_projections(position: str) -> pd.DataFrame:
     """
@@ -187,10 +209,13 @@ selected_league_name = league_ids[league_id]
 
 # Fetch draft + league info
 league, scoring, roster_to_owner = get_league_data(league_id)
-draft_id, picks = get_draft(league_id)
+draft_id, picks, draft_time = get_draft(league_id)
 
 if not picks:
-    st.error("No draft found yet for this league.")
+    if not draft_time:
+        st.error("No draft time set for this league.")
+        st.stop()
+    st.error(f"No draft picks found yet. Draft is scheduled for {draft_time}.")
     st.stop()
 
 # Fetch projections + calculate VORP
