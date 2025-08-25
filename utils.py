@@ -36,9 +36,12 @@ def get_draft(league_id: str):
         draft_id = draft.get("draft_id")
         draft_time = None
         start_ms = draft.get("start_time")
+        st.markdown(start_ms)
         if start_ms:
             draft_time = datetime.fromtimestamp(start_ms / 1000, tz=timezone.utc)
+            st.markdown(draft_time)
             draft_time = draft_time.astimezone(ZoneInfo("America/Los_Angeles"))
+            st.markdown(draft_time)
         picks = requests.get(f"https://api.sleeper.app/v1/draft/{draft_id}/picks").json() if draft_id else []
         return draft_id, picks, draft_time
     except Exception as e:
