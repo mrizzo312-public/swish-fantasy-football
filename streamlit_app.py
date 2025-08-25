@@ -2,6 +2,7 @@ import streamlit as st
 import requests
 import pandas as pd
 
+
 st.set_page_config(
     page_title="Swish Standings",  # This changes the browser tab title
     page_icon="🏈",                 # Optional: adds an emoji icon in the tab
