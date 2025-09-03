@@ -270,6 +270,7 @@ def get_matchups_with_owners(rosters_df: pd.DataFrame, roster_to_owner: dict, me
         - 'roster_ids' (list of roster IDs in matchup)
         - 'owners' (list of owner names)
         - 'avg_power' (mean Power Score of the teams in matchup)
+        - 'Matchup' (string, e.g., "Alice vs Bob")
     """
     matchups_list = []
     for matchup_id, group in rosters_df.groupby("matchup_id"):
@@ -284,7 +285,8 @@ def get_matchups_with_owners(rosters_df: pd.DataFrame, roster_to_owner: dict, me
             "matchup_id": matchup_id,
             "roster_ids": team_ids,
             "owners": owners,
-            "avg_power": avg_power
+            "avg_power": avg_power,
+            "Matchup": " vs ".join(owners)  # human-readable matchup
         })
 
     return pd.DataFrame(matchups_list)
