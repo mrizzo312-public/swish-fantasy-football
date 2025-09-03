@@ -64,15 +64,20 @@ if matchups.empty:
 # ------------------------
 player_map = get_player_map("player_ids.csv")
 
-week = current_week  # e.g., league.get("settings", {}).get("leg", 1)
-matchups_week = requests.get(f"https://api.sleeper.app/v1/league/{league_id}/matchups/{week}").json()
-matchups_df = pd.DataFrame(matchups_week)  # must include 'matchup_id' and 'roster_id' or 'rosters'
+# --- Fetch matchups for the current week ---
+matchups_week = requests.get(f"https://api.sleeper.app/v1/league/{league_id}/matchups/{current_week}").json()
 
-# Expand so each row = roster in that matchup
+# --- Expand each matchup into roster rows ---
 rosters_for_week = []
 for m in matchups_week:
-    for rid in m.get("rosters", []):
-        rosters_for_week.append({"roster_id": rid, "matchup_id": m["matchup_id"]})
+    matchup_id = m.get("matchup_id")
+    roster_ids = m.get("rosters", [])  # list of roster_ids in that matchup
+    for rid in roster_ids:
+        rosters_for_week.append({
+            "roster_id": rid,
+            "matchup_id": matchup_id
+        })
+
 rosters_df = pd.DataFrame(rosters_for_week)
 
 matchups = get_matchups_with_owners(rosters_df, roster_to_owner, merged)
