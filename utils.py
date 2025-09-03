@@ -304,3 +304,54 @@ def get_matchups_with_owners(rosters_df: pd.DataFrame, roster_to_owner: dict, me
         })
 
     return pd.DataFrame(matchups_list)
+
+
+def fetch_weekly_projections(current_week: int = 1):
+    """
+    Fetch weekly fantasy projections from FantasyPros for the given week.
+    Returns a dict: player_name -> projected_points.
+    """
+    positions = ["qb", "rb", "wr", "te", "k", "dst"]
+    all_dfs = []
+
+    for pos in positions:
+        url = f"https://www.fantasypros.com/nfl/projections/{pos}.php?week={current_week}"
+        try:
+            r = requests.get(url)
+            r.raise_for_status()
+            tables = pd.read_html(r.text, flavor="html5lib")
+            if tables:
+                df = tables[0]
+
+                # Ensure column names are standard
+                if isinstance(df.columns, pd.MultiIndex):
+                    df.columns = ['_'.join(filter(None, col)).strip() for col in df.columns.values]
+
+                # Keep necessary columns
+                # Many tables have Player column and FPTS or similar
+                possible_points_cols = [c for c in df.columns if 'FPTS' in c.upper() or 'PTS' in c.upper()]
+                if not possible_points_cols:
+                    st.warning(f"No projected points column found for {pos.upper()}")
+                    continue
+
+                df = df.rename(columns={possible_points_cols[0]: 'Proj Points', df.columns[0]: 'Player'})
+                df['Position'] = pos.upper()
+
+                # Split out Player Name / Team if combined
+                df[['Player', 'Team']] = df['Player'].str.rsplit(' ', n=1, expand=True)
+                df['Proj Points'] = pd.to_numeric(df['Proj Points'], errors='coerce')
+                df = df.dropna(subset=['Proj Points'])
+
+                all_dfs.append(df[['Player', 'Team', 'Position', 'Proj Points']])
+        except Exception as e:
+            st.error(f"Error fetching {pos.upper()} projections: {e}")
+            continue
+
+    if all_dfs:
+        all_proj_df = pd.concat(all_dfs, ignore_index=True)
+        # Create mapping player_name -> projected points
+        proj_map = dict(zip(all_proj_df['Player'], all_proj_df['Proj Points']))
+        return proj_map
+    else:
+        st.warning("No projections found.")
+        return {}

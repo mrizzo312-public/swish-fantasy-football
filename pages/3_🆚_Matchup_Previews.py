@@ -8,7 +8,7 @@ import sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from utils import (
     get_league_data, get_league_names, get_standings, get_draft_grades, get_matchups_with_owners,
-    get_all_projections, calculate_dynamic_vorp, split_player_team, get_player_map, calculate_power_scores
+    get_all_projections, fetch_weekly_projections, split_player_team, get_player_map, calculate_power_scores
 )
 
 st.title("🆚 Matchup Previews")
@@ -94,19 +94,7 @@ matchup_row = matchups.loc[selected_matchup_idx]
 is_matchup_of_week = selected_matchup_idx == default_idx
 st.subheader("🔥 Matchup of the Week!" if is_matchup_of_week else "Selected Matchup")
 
-proj_df = get_all_projections()
-proj_df = split_player_team(proj_df)
-
-# Flatten multi-level columns if needed
-if isinstance(proj_df.columns, pd.MultiIndex):
-    proj_df.columns = ['_'.join(filter(None, col)).strip() for col in proj_df.columns.values]
-
-proj_df = proj_df.rename(columns={'MISC_FPTS': 'FPTS','Unnamed: 0_level_0_Player':'Player'})
-proj_df = split_player_team(proj_df)
-proj_df = proj_df[['Player', 'FPTS', 'Position']].dropna(subset=['FPTS'])
-proj_df['FPTS'] = proj_df['FPTS'].astype(float)
-
-vorp = calculate_dynamic_vorp(proj_df)
+weekly_proj_map = fetch_weekly_projections(current_week)
 
 roster_ids = matchup_row["roster_ids"]
 owners = matchup_row["owners"]
@@ -135,7 +123,7 @@ def get_starters_df(matchups_week, selected_matchup_id, roster_to_owner, vorp, p
         
         for player_id in starters:
             player_name = player_map.get(player_id, "Unknown Player")
-            proj_points = vorp.get(player_name, 0)
+            proj_points = weekly_proj_map.get(player_name, 0)
             rows.append({
                 "Matchup ID": selected_matchup_id,
                 "Roster ID": roster_id,
