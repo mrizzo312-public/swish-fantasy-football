@@ -223,3 +223,35 @@ def get_player_map(csv_path="player_ids.csv") -> dict:
 
     return dict(zip(player_df["player_id"], player_df["player_name"]))
 
+def calculate_power_scores(standings_df, draft_grades_df, league):
+    """
+    Compute power scores by weighting record vs draft grade based on season progress.
+    
+    standings_df: DataFrame with ['Owner', 'Wins', 'Losses', 'PF', 'PA']
+    draft_grades_df: DataFrame with ['Owner', 'Draft Score']
+    league: dict from Sleeper API with 'settings' -> 'season_length' and 'leg'
+    """
+    # Merge standings with draft grades
+    merged = standings_df.merge(draft_grades_df, on="Owner", how="left")
+
+    # Season progress
+    season_length = league.get("settings", {}).get("season_length", 14)
+    current_week = league.get("settings", {}).get("leg", 1)
+    weeks_remaining = max(season_length - current_week + 1, 0)
+    projection_weight = weeks_remaining / season_length
+    record_weight = 1 - projection_weight
+
+    # Record-based scoring
+    merged["Win %"] = merged["Wins"] / (merged["Wins"] + merged["Losses"]).replace(0, 1)
+    merged["Win % Score"] = 100 * (merged["Win %"] - merged["Win %"].min()) / (merged["Win %"].max() - merged["Win %"].min() + 1e-6)
+    merged["PF Score"] = 100 * (merged["PF"] - merged["PF"].min()) / (merged["PF"].max() - merged["PF"].min() + 1e-6)
+    merged["Record Score"] = 0.6 * merged["Win % Score"] + 0.4 * merged["PF Score"]
+
+    # Final power score
+    merged["Power Score"] = record_weight * merged["Record Score"] + projection_weight * merged["Draft Score"]
+
+    # Sort descending
+    merged = merged.sort_values("Power Score", ascending=False).reset_index(drop=True)
+    merged.index = merged.index + 1
+
+    return merged
