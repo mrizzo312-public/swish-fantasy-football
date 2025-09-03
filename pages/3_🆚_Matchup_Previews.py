@@ -100,14 +100,14 @@ roster_ids = matchup_row["roster_ids"]
 owners = matchup_row["owners"]
 matchup_id = matchup_row["matchup_id"]
 
-def get_starters_df(matchups_week, selected_matchup_id, roster_to_owner, vorp, player_map):
+def get_starters_df(matchups_week, selected_matchup_id, roster_to_owner, weekly_proj_map, player_map):
     """
-    Returns a DataFrame of starters for a given matchup, with projected VORP points.
+    Returns a DataFrame of starters for a given matchup, with projected weekly_proj_map points.
     
     matchups_week: list of matchup dicts from Sleeper API
     selected_matchup_id: the matchup_id we want
     roster_to_owner: dict mapping roster_id -> owner name
-    vorp: dict mapping player_name -> projected points
+    weekly_proj_map: dict mapping player_name -> projected points
     player_map: dict mapping player_id -> player_name
     """
     
@@ -136,7 +136,7 @@ def get_starters_df(matchups_week, selected_matchup_id, roster_to_owner, vorp, p
     return df
 
 
-starters_df = get_starters_df(matchups_week, matchup_id, roster_to_owner, vorp, player_map)
+starters_df = get_starters_df(matchups_week, matchup_id, roster_to_owner, weekly_proj_map, player_map)
 
 for owner in owners:
     st.markdown(f"### {owner} Starters")
