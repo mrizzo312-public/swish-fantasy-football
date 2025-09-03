@@ -95,8 +95,17 @@ is_matchup_of_week = selected_matchup_idx == default_idx
 st.subheader("🔥 Matchup of the Week!" if is_matchup_of_week else "Selected Matchup")
 
 proj_df = get_all_projections()
-st.dataframe(proj_df.head(), use_container_width=True)
 proj_df = split_player_team(proj_df)
+
+# Flatten multi-level columns if needed
+if isinstance(proj_df.columns, pd.MultiIndex):
+    proj_df.columns = ['_'.join(filter(None, col)).strip() for col in proj_df.columns.values]
+
+proj_df = proj_df.rename(columns={'MISC_FPTS': 'FPTS','Unnamed: 0_level_0_Player':'Player'})
+proj_df = split_player_team(proj_df)
+proj_df = proj_df[['Player', 'FPTS', 'Position']].dropna(subset=['FPTS'])
+proj_df['FPTS'] = proj_df['FPTS'].astype(float)
+
 vorp = calculate_dynamic_vorp(proj_df)
 
 # Loop through each team in the matchup
