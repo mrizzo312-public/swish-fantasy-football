@@ -78,7 +78,7 @@ lowest_power_teams = merged.nsmallest(2, "Record Score")["Owner"].tolist()
 default_matchup_idx = None
 min_avg_score = float('inf')
 for idx, row in matchups.iterrows():
-    teams = [roster_to_owner.get(rid, f"Team {rid}") for rid in row["roster_id"]]
+    teams = [roster_to_owner.get(row["roster_id"], f"Team {row['roster_id']}")]
     avg_score = merged[merged["Owner"].isin(teams)]["Record Score"].mean()
     if avg_score < min_avg_score:
         min_avg_score = avg_score
