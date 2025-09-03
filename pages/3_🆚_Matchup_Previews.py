@@ -108,14 +108,12 @@ proj_df['FPTS'] = proj_df['FPTS'].astype(float)
 
 vorp = calculate_dynamic_vorp(proj_df)
 
-owners = matchup_row["owners"]  # e.g., ["Alice", "Bob"]
-
 st.markdown(matchup_row)
 
-for owner in owners:
-    roster_id = next((rid for rid, o in roster_to_owner.items() if o == owner), None)
-    if roster_id is None:
-        continue
+roster_ids = matchup_row["roster_ids"]
+owners = matchup_row["owners"]
+
+for roster_id, owner in zip(roster_ids, owners):
 
     st.markdown(f"### {owner} Starters")
     
