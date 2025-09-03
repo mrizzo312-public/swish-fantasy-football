@@ -73,16 +73,18 @@ player_map = get_player_map("player_ids.csv")
 # ------------------------
 # Identify matchup of the week
 # ------------------------
-# Use two lowest power score teams as default
-lowest_power_teams = merged.nsmallest(2, "Record Score")["Owner"].tolist()
+# Use two highest power score teams as default
+highest_power_teams = merged.nlargest(2, "Record Score")["Owner"].tolist()
 default_matchup_idx = None
-min_avg_score = float('inf')
+max_avg_score = float('-inf')
+
 for idx, row in matchups.iterrows():
     teams = [roster_to_owner.get(row["roster_id"], f"Team {row['roster_id']}")]
     avg_score = merged[merged["Owner"].isin(teams)]["Record Score"].mean()
-    if avg_score < min_avg_score:
-        min_avg_score = avg_score
+    if avg_score > max_avg_score:
+        max_avg_score = avg_score
         default_matchup_idx = idx
+
 
 # ------------------------
 # Matchup selector
