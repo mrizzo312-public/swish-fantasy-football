@@ -70,8 +70,11 @@ matchups_week = requests.get(f"https://api.sleeper.app/v1/league/{league_id}/mat
 # --- Expand each matchup into roster rows ---
 rosters_for_week = []
 for m in matchups_week:
+    st.markdown(m)
     matchup_id = m.get("matchup_id")
+    st.markdown(matchup_id)
     roster_ids = m.get("roster_id", [])  # list of roster_ids in that matchup
+    st.markdown(roster_ids)
     for rid in roster_ids:
         rosters_for_week.append({
             "roster_id": rid,
