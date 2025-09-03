@@ -75,8 +75,6 @@ rosters_df = pd.DataFrame([{
 
 matchups = get_matchups_with_owners(rosters_df, roster_to_owner, merged)
 
-st.dataframe(matchups)
-
 default_idx = matchups["avg_power"].idxmax()
 
 # Dropdown
@@ -93,7 +91,7 @@ selected_matchup_idx = st.selectbox(
 # Display selected matchup
 # ------------------------
 matchup_row = matchups.loc[selected_matchup_idx]
-is_matchup_of_week = selected_matchup_idx == default_matchup_idx
+is_matchup_of_week = selected_matchup_idx == default_idx
 st.subheader("🔥 Matchup of the Week!" if is_matchup_of_week else "Selected Matchup")
 
 proj_df = get_all_projections()
