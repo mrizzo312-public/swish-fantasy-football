@@ -118,11 +118,7 @@ for roster_id, owner in zip(roster_ids, owners):
     st.markdown(f"### {owner} Starters")
     
     # Fetch starters for this roster for the week
-    starters_resp = requests.get(f"https://api.sleeper.app/v1/roster/{roster_id}/week/{current_week}")
-    st.markdown(starters_resp)
-    starters = starters_resp.json().get("starters", [])
-
-    st.markdown(starters)
+    st.markdown(matchups_week)
 
     starter_rows = []
     for player_id in starters:
