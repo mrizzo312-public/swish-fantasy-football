@@ -8,7 +8,7 @@ import sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from utils import (
     get_league_data, get_league_names, get_standings, get_draft_grades,
-    get_all_projections, calculate_dynamic_vorp, split_player_team, get_player_map
+    get_all_projections, calculate_dynamic_vorp, split_player_team, get_player_map, calculate_power_scores
 )
 
 st.title("🆚 Matchup Previews")
@@ -40,18 +40,12 @@ if standings_df.empty or draft_grades_df.empty:
     st.info("Not enough data to generate matchup previews.")
     st.stop()
 
-# Compute simple power score (50% draft, 50% record)
-merged = pd.merge(standings_df, draft_grades_df, left_on="Owner", right_on="Owner", how="left")
-merged["Draft Score"] = merged["Draft Score"].fillna(0)
-merged["Win %"] = merged["Wins"] / (merged["Wins"] + merged["Losses"]).replace(0,1)
-merged["Record Score"] = 0.5 * (merged["Win %"]*100) + 0.5 * merged["Draft Score"]
-merged = merged.sort_values("Record Score", ascending=True).reset_index(drop=True)  # lowest first
-
 # ------------------------
 # Fetch matchups
 # ------------------------
 league, _, roster_to_owner = get_league_data(league_id)
 current_week = league.get("settings", {}).get("leg", 1)
+merged = calculate_power_scores(standings_df, draft_grades_df, league)
 
 try:
     resp = requests.get(f"https://api.sleeper.app/v1/league/{league_id}/matchups/{current_week}")
