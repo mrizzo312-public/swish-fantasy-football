@@ -7,7 +7,7 @@ import sys
 # Add parent folder to path for utils
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from utils import (
-    get_league_data, get_league_names, get_standings, get_draft_grades,
+    get_league_data, get_league_names, get_standings, get_draft_grades, get_matchups_with_owners,
     get_all_projections, calculate_dynamic_vorp, split_player_team, get_player_map, calculate_power_scores
 )
 
@@ -64,43 +64,17 @@ if matchups.empty:
 # ------------------------
 player_map = get_player_map("player_ids.csv")
 
-# ------------------------
-# Identify matchup of the week
-# ------------------------
-# Use two highest power score teams as default
-# --- Determine Matchup of the Week (highest combined power score) ---
-default_matchup_idx = None
-max_avg_score = float('-inf')
+matchups = get_matchups_with_owners(rosters, roster_to_owner, merged)
 
-for idx, row in matchups.iterrows():
-    roster_ids = row["roster_id"]
-    if not isinstance(roster_ids, list):
-        roster_ids = [roster_ids]
+# Pick Matchup of the Week (highest avg_power)
+default_matchup_id = matchups.loc[matchups["avg_power"].idxmax(), "matchup_id"]
 
-    # Get the average power score of both teams in this matchup
-    team_scores = merged[merged["Owner"].isin([roster_to_owner.get(rid, f"Team {rid}") for rid in roster_ids])]
-    if not team_scores.empty:
-        avg_score = team_scores["Power Score"].mean()
-        if avg_score > max_avg_score:
-            max_avg_score = avg_score
-            default_matchup_idx = idx
-
-
-
-def format_matchup(x):
-    roster_ids = matchups.loc[x, "roster_id"]
-    if not isinstance(roster_ids, list):
-        roster_ids = [roster_ids]
-    label = " vs ".join(roster_to_owner.get(rid, f"Team {rid}") for rid in roster_ids)
-    if x == default_matchup_idx:
-        label = f"⭐ Matchup of the Week: {label}"
-    return label
-
-selected_matchup_idx = st.selectbox(
+# Dropdown
+selected_matchup_id = st.selectbox(
     "Select Matchup",
-    matchups.index,
-    index=default_matchup_idx,
-    format_func=format_matchup,
+    matchups["matchup_id"].tolist(),
+    format_func=lambda mid: " vs ".join(matchups.loc[matchups["matchup_id"] == mid, "owners"].values[0]),
+    index=matchups.index[matchups["matchup_id"] == default_matchup_id][0]
 )
 
 # ------------------------

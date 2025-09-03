@@ -255,3 +255,36 @@ def calculate_power_scores(standings_df, draft_grades_df, league):
     merged.index = merged.index + 1
 
     return merged
+
+def get_matchups_with_owners(rosters_df: pd.DataFrame, roster_to_owner: dict, merged_power_df: pd.DataFrame):
+    """
+    Returns a DataFrame where each row represents a matchup between two or more teams.
+
+    rosters_df: Sleeper rosters for a given week (must include 'roster_id' and 'matchup_id')
+    roster_to_owner: dict mapping roster_id -> owner name
+    merged_power_df: DataFrame with Power Score ('Owner', 'Power Score')
+
+    Returns:
+        matchups_df with columns:
+        - 'matchup_id'
+        - 'roster_ids' (list of roster IDs in matchup)
+        - 'owners' (list of owner names)
+        - 'avg_power' (mean Power Score of the teams in matchup)
+    """
+    matchups_list = []
+    for matchup_id, group in rosters_df.groupby("matchup_id"):
+        if matchup_id == 0:  # 0 = bye / no opponent
+            continue
+        team_ids = group["roster_id"].tolist()
+        owners = [roster_to_owner.get(rid, f"Team {rid}") for rid in team_ids]
+
+        avg_power = merged_power_df[merged_power_df["Owner"].isin(owners)]["Power Score"].mean()
+
+        matchups_list.append({
+            "matchup_id": matchup_id,
+            "roster_ids": team_ids,
+            "owners": owners,
+            "avg_power": avg_power
+        })
+
+    return pd.DataFrame(matchups_list)
