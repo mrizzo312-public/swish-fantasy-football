@@ -80,6 +80,8 @@ for m in matchups_week:
 
 rosters_df = pd.DataFrame(rosters_for_week)
 
+st.markdown(current_week)
+st.markdown(matchups_week)
 st.dataframe(rosters_df)
 
 matchups = get_matchups_with_owners(rosters_df, roster_to_owner, merged)
