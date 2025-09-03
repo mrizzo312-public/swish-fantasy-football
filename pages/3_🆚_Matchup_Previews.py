@@ -95,6 +95,7 @@ is_matchup_of_week = selected_matchup_idx == default_idx
 st.subheader("🔥 Matchup of the Week!" if is_matchup_of_week else "Selected Matchup")
 
 proj_df = get_all_projections()
+st.dataframe(proj_df.head(), use_container_width=True)
 proj_df = split_player_team(proj_df)
 vorp = calculate_dynamic_vorp(proj_df)
 
