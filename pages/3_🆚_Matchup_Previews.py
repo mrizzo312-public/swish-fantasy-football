@@ -108,16 +108,19 @@ proj_df['FPTS'] = proj_df['FPTS'].astype(float)
 
 vorp = calculate_dynamic_vorp(proj_df)
 
-# Assuming matchup_row["owners"] is a list: [owner1_name, owner2_name]
-owners = matchup_row["owners"]
+owners = matchup_row["owners"]  # e.g., ["Alice", "Bob"]
+week = current_week
 
 for owner in owners:
-    # Find roster_id for this owner
     roster_id = next((rid for rid, o in roster_to_owner.items() if o == owner), None)
-    st.markdown(f"### {owner} Starters")
+    if roster_id is None:
+        continue
 
-    # Get starters for this roster_id
-    starters = matchup_row.get("starters", {}).get(roster_id, [])
+    st.markdown(f"### {owner} Starters")
+    
+    # Fetch starters for this roster for the week
+    starters_resp = requests.get(f"https://api.sleeper.app/v1/roster/{roster_id}/week/{week}")
+    starters = starters_resp.json().get("starters", [])
 
     starter_rows = []
     for player_id in starters:
@@ -126,4 +129,5 @@ for owner in owners:
         starter_rows.append({"Player": player_name, "Proj Points": round(proj_points, 1)})
 
     st.table(pd.DataFrame(starter_rows))
+
 
