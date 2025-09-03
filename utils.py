@@ -353,7 +353,7 @@ def fetch_weekly_projections(current_week: int = 1):
                 df['Position'] = pos.upper()
 
                 # Split out Player Name / Team if combined
-                df[['Player', 'Team']] = df['Player'].str.rsplit(' ', n=1, expand=True)
+                df = split_player_team(df)
                 df['Proj Points'] = pd.to_numeric(df['Proj Points'], errors='coerce')
                 df = df.dropna(subset=['Proj Points'])
 
