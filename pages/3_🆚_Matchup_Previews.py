@@ -74,36 +74,40 @@ player_map = get_player_map("player_ids.csv")
 # Identify matchup of the week
 # ------------------------
 # Use two highest power score teams as default
-highest_power_teams = merged.nlargest(2, "Record Score")["Owner"].tolist()
+# --- Determine Matchup of the Week (highest combined power score) ---
 default_matchup_idx = None
 max_avg_score = float('-inf')
 
 for idx, row in matchups.iterrows():
-    teams = [roster_to_owner.get(row["roster_id"], f"Team {row['roster_id']}")]
-    avg_score = merged[merged["Owner"].isin(teams)]["Record Score"].mean()
-    if avg_score > max_avg_score:
-        max_avg_score = avg_score
-        default_matchup_idx = idx
+    roster_ids = row["roster_id"]
+    if not isinstance(roster_ids, list):
+        roster_ids = [roster_ids]
+
+    # Get the average power score of both teams in this matchup
+    team_scores = merged[merged["Owner"].isin([roster_to_owner.get(rid, f"Team {rid}") for rid in roster_ids])]
+    if not team_scores.empty:
+        avg_score = team_scores["Power Score"].mean()
+        if avg_score > max_avg_score:
+            max_avg_score = avg_score
+            default_matchup_idx = idx
 
 
-# --- Helper to format matchup names ---
+
 def format_matchup(x):
     roster_ids = matchups.loc[x, "roster_id"]
     if not isinstance(roster_ids, list):
         roster_ids = [roster_ids]
     label = " vs ".join(roster_to_owner.get(rid, f"Team {rid}") for rid in roster_ids)
-    if x == default_matchup_idx:  # Highlight Matchup of the Week
+    if x == default_matchup_idx:
         label = f"⭐ Matchup of the Week: {label}"
     return label
 
-# --- Matchup selectbox ---
 selected_matchup_idx = st.selectbox(
     "Select Matchup",
     matchups.index,
     index=default_matchup_idx,
     format_func=format_matchup,
 )
-
 
 # ------------------------
 # Display selected matchup
