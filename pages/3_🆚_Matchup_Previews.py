@@ -108,24 +108,48 @@ proj_df['FPTS'] = proj_df['FPTS'].astype(float)
 
 vorp = calculate_dynamic_vorp(proj_df)
 
-st.markdown(matchup_row)
-
 roster_ids = matchup_row["roster_ids"]
 owners = matchup_row["owners"]
+matchup_id = matchup_row["matchup_id"]
 
-for roster_id, owner in zip(roster_ids, owners):
-
-    st.markdown(f"### {owner} Starters")
+def get_starters_df(matchups_week, selected_matchup_id, roster_to_owner, vorp, player_map):
+    """
+    Returns a DataFrame of starters for a given matchup, with projected VORP points.
     
-    # Fetch starters for this roster for the week
-    st.markdown(matchups_week)
+    matchups_week: list of matchup dicts from Sleeper API
+    selected_matchup_id: the matchup_id we want
+    roster_to_owner: dict mapping roster_id -> owner name
+    vorp: dict mapping player_name -> projected points
+    player_map: dict mapping player_id -> player_name
+    """
+    
+    rows = []
+    
+    # Filter only the rows for the selected matchup
+    matchup_rows = [m for m in matchups_week if m["matchup_id"] == selected_matchup_id]
+    
+    for m in matchup_rows:
+        roster_id = m["roster_id"]
+        owner = roster_to_owner.get(roster_id, f"Team {roster_id}")
+        starters = m.get("starters", [])
+        
+        for player_id in starters:
+            player_name = player_map.get(player_id, "Unknown Player")
+            proj_points = vorp.get(player_name, 0)
+            rows.append({
+                "Matchup ID": selected_matchup_id,
+                "Roster ID": roster_id,
+                "Owner": owner,
+                "Player": player_name,
+                "Proj Points": round(proj_points, 1)
+            })
+    
+    df = pd.DataFrame(rows)
+    return df
 
-    starter_rows = []
-    for player_id in starters:
-        player_name = player_map.get(player_id, "Unknown Player")
-        proj_points = vorp.get(player_name, 0)
-        starter_rows.append({"Player": player_name, "Proj Points": round(proj_points, 1)})
 
-    st.table(pd.DataFrame(starter_rows))
+starters_df = get_starters_df(matchups_week, matchup_id, roster_to_owner, vorp, player_map)
 
-
+for owner in owners:
+    st.markdown(f"### {owner} Starters")
+    st.table(starters_df[starters_df["Owner"] == owner][["Player", "Proj Points"]])
