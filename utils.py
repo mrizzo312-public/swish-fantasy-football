@@ -141,20 +141,34 @@ def split_player_team(proj_df: pd.DataFrame):
         player_col = [c for c in proj_df.columns if 'Player' in c][0]
         proj_df = proj_df.rename(columns={player_col: 'Player'})
 
+    # Suffixes to handle
+    suffixes = {"Jr.", "II", "III", "IV", "V"}
+
     # Split player/team
     def parse_name_team(s):
         s = s.strip()
-        m = re.match(r"^(.*)\s([A-Z]{2,3})$", s)
-        if m:
-            name, team = m.groups()
-            return pd.Series([name, team])
-        else:
+        tokens = s.split()
+        if len(tokens) < 2:
             return pd.Series([s, None])
+
+        # Last token is always team if it's all uppercase and length 2-3
+        possible_team = tokens[-1].upper()
+        if re.fullmatch(r"[A-Z]{2,3}", possible_team):
+            # Check if second-to-last is a suffix
+            if tokens[-2] in suffixes:
+                name = " ".join(tokens[:-2]) + f" {tokens[-2]}"
+            else:
+                name = " ".join(tokens[:-1])
+            team = possible_team
+        else:
+            # No valid team detected
+            name = s
+            team = None
+
+        return pd.Series([name, team])
 
     proj_df[['Player', 'Team']] = proj_df['Player'].apply(parse_name_team)
     return proj_df
-
-
 
 def get_league_names(league_ids: dict):
     """Fetch names for all league IDs."""
