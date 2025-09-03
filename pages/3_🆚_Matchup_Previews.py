@@ -107,12 +107,16 @@ proj_df = proj_df[['Player', 'FPTS', 'Position']].dropna(subset=['FPTS'])
 proj_df['FPTS'] = proj_df['FPTS'].astype(float)
 
 vorp = calculate_dynamic_vorp(proj_df)
+# Get the two roster IDs for the matchup
+roster_ids = [matchup_row["roster_id_1"], matchup_row["roster_id_2"]]
 
-# Loop through each team in the matchup
-for roster_id in matchup_row["roster_id"]:
+# Loop through each roster in the matchup
+for roster_id in roster_ids:
     owner = roster_to_owner.get(roster_id, f"Team {roster_id}")
     st.markdown(f"### {owner} Starters")
-    starters = matchup_row.get("starters", [])
+
+    # Get starters for this roster
+    starters = matchup_row.get("starters", {}).get(roster_id, [])
 
     starter_rows = []
     for player_id in starters:
