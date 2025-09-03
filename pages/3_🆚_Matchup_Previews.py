@@ -71,7 +71,7 @@ matchups_week = requests.get(f"https://api.sleeper.app/v1/league/{league_id}/mat
 rosters_for_week = []
 for m in matchups_week:
     matchup_id = m.get("matchup_id")
-    roster_ids = m.get("rosters", [])  # list of roster_ids in that matchup
+    roster_ids = m.get("roster_id", [])  # list of roster_ids in that matchup
     for rid in roster_ids:
         rosters_for_week.append({
             "roster_id": rid,
@@ -79,10 +79,6 @@ for m in matchups_week:
         })
 
 rosters_df = pd.DataFrame(rosters_for_week)
-
-st.markdown(current_week)
-st.markdown(matchups_week)
-st.dataframe(rosters_df)
 
 matchups = get_matchups_with_owners(rosters_df, roster_to_owner, merged)
 
