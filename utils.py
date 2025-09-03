@@ -130,16 +130,30 @@ def assign_grades(team_scores: dict):
 
 
 def split_player_team(proj_df: pd.DataFrame):
-    """Split 'Player' into name and team, handling Jr./III etc."""
+    import re
+
+    # Flatten MultiIndex columns if necessary
+    if isinstance(proj_df.columns, pd.MultiIndex):
+        proj_df.columns = ['_'.join(filter(None, col)).strip() for col in proj_df.columns.values]
+
+    # Rename player column if needed
+    if 'Player' not in proj_df.columns:
+        player_col = [c for c in proj_df.columns if 'Player' in c][0]
+        proj_df = proj_df.rename(columns={player_col: 'Player'})
+
+    # Split player/team
     def parse_name_team(s):
-        tokens = s.strip().split()
-        if len(tokens) < 2:
+        s = s.strip()
+        m = re.match(r"^(.*)\s([A-Z]{2,3})$", s)
+        if m:
+            name, team = m.groups()
+            return pd.Series([name, team])
+        else:
             return pd.Series([s, None])
-        team = tokens[-1].upper()
-        name = ' '.join(tokens[:-1])
-        return pd.Series([name, team])
+
     proj_df[['Player', 'Team']] = proj_df['Player'].apply(parse_name_team)
     return proj_df
+
 
 
 def get_league_names(league_ids: dict):
