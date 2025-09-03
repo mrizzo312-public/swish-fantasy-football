@@ -76,17 +76,15 @@ rosters_df = pd.DataFrame([{
 matchups = get_matchups_with_owners(rosters_df, roster_to_owner, merged)
 
 st.dataframe(matchups)
-# Pick Matchup of the Week (highest avg_power)
-default_matchup_id = matchups.loc[matchups["avg_power"].idxmax(), "matchup_id"]
 
-st.dataframe(default_matchup_id)
+default_idx = matchups["avg_power"].idxmax()
 
 # Dropdown
-selected_matchup_id = st.selectbox(
+selected_matchup_idx = st.selectbox(
     "Select Matchup",
-    matchups["matchup_id"].tolist(),
-    format_func=lambda mid: " vs ".join(matchups.loc[matchups["matchup_id"] == mid, "owners"].values[0]),
-    index=matchups.index[matchups["matchup_id"] == default_matchup_id][0]
+    matchups.index.tolist(),
+    format_func=lambda idx: matchups.loc[idx, "Matchup"],
+    index=default_idx
 )
 
 # ------------------------
