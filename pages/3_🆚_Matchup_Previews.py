@@ -95,6 +95,7 @@ is_matchup_of_week = selected_matchup_idx == default_idx
 st.subheader("🔥 Matchup of the Week!" if is_matchup_of_week else "Selected Matchup")
 
 weekly_proj_map = fetch_weekly_projections(current_week)
+st.dataframe(weekly_proj_map, use_container_width=True)
 
 roster_ids = matchup_row["roster_ids"]
 owners = matchup_row["owners"]
