@@ -95,7 +95,6 @@ is_matchup_of_week = selected_matchup_idx == default_idx
 st.subheader("🔥 Matchup of the Week!" if is_matchup_of_week else "Selected Matchup")
 
 weekly_proj_map = fetch_weekly_projections(current_week)
-st.dataframe(weekly_proj_map, use_container_width=True)
 
 roster_ids = matchup_row["roster_ids"]
 owners = matchup_row["owners"]
@@ -103,7 +102,7 @@ matchup_id = matchup_row["matchup_id"]
 
 def get_starters_df(matchups_week, selected_matchup_id, roster_to_owner, weekly_proj_map, player_map):
     """
-    Returns a DataFrame of starters for a given matchup, with projected weekly_proj_map points.
+    Returns a DataFrame of starters for a given matchup, with projected weekly points.
     
     matchups_week: list of matchup dicts from Sleeper API
     selected_matchup_id: the matchup_id we want
@@ -134,11 +133,20 @@ def get_starters_df(matchups_week, selected_matchup_id, roster_to_owner, weekly_
             })
     
     df = pd.DataFrame(rows)
+    
+    # Calculate total projected points per owner
+    totals = df.groupby("Owner")["Proj Points"].sum().reset_index()
+    totals = totals.rename(columns={"Proj Points": "Total Proj Points"})
+    
+    # Merge total back into the starters df if desired
+    df = df.merge(totals, on="Owner", how="left")
+    
     return df
 
 
 starters_df = get_starters_df(matchups_week, matchup_id, roster_to_owner, weekly_proj_map, player_map)
 
 for owner in owners:
-    st.markdown(f"### {owner} Starters")
+    total_points = starters_df[starters_df["Owner"] == owner]["Total Proj Points"].iloc[0]
+    st.markdown(f"### {owner} Starters — Total Projected Points: {round(total_points,1)}")
     st.table(starters_df[starters_df["Owner"] == owner][["Player", "Proj Points"]])
