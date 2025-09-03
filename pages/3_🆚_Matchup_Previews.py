@@ -86,15 +86,24 @@ for idx, row in matchups.iterrows():
         default_matchup_idx = idx
 
 
-# ------------------------
-# Matchup selector
-# ------------------------
+# --- Helper to format matchup names ---
+def format_matchup(x):
+    roster_ids = matchups.loc[x, "roster_id"]
+    if not isinstance(roster_ids, list):
+        roster_ids = [roster_ids]
+    label = " vs ".join(roster_to_owner.get(rid, f"Team {rid}") for rid in roster_ids)
+    if x == default_matchup_idx:  # Highlight Matchup of the Week
+        label = f"⭐ Matchup of the Week: {label}"
+    return label
+
+# --- Matchup selectbox ---
 selected_matchup_idx = st.selectbox(
     "Select Matchup",
-    options=list(range(len(matchups))),
-    format_func=lambda x: " vs ".join([roster_to_owner.get(rid, f"Team {rid}") for rid in matchups.loc[x, "roster_id"]]),
-    index=default_matchup_idx
+    matchups.index,
+    index=default_matchup_idx,
+    format_func=format_matchup,
 )
+
 
 # ------------------------
 # Display selected matchup
