@@ -128,7 +128,6 @@ def assign_grades(team_scores: dict):
         grades[team] = (score, grade)
     return grades
 
-
 def split_player_team(proj_df: pd.DataFrame):
     import re
 
@@ -141,29 +140,31 @@ def split_player_team(proj_df: pd.DataFrame):
         player_col = [c for c in proj_df.columns if 'Player' in c][0]
         proj_df = proj_df.rename(columns={player_col: 'Player'})
 
-    # Suffixes to handle
-    suffixes = {"Jr.", "II", "III", "IV", "V"}
+    # Known suffixes to drop
+    suffixes = {"Jr", "Jr.", "II", "III", "IV", "V"}
 
-    # Split player/team
     def parse_name_team(s):
-        s = s.strip()
-        tokens = s.split()
+        tokens = s.strip().split()
         if len(tokens) < 2:
             return pd.Series([s, None])
 
-        # Last token is always team if it's all uppercase and length 2-3
-        possible_team = tokens[-1].upper()
-        if re.fullmatch(r"[A-Z]{2,3}", possible_team):
-            # Check if second-to-last is a suffix
-            if tokens[-2] in suffixes:
-                name = " ".join(tokens[:-2]) + f" {tokens[-2]}"
-            else:
-                name = " ".join(tokens[:-1])
-            team = possible_team
+        last_token = tokens[-1].upper()
+        team_pattern = r'^[A-Z]{2,3}$'
+
+        if re.fullmatch(team_pattern, last_token):
+            team = last_token
+            # Remove suffix if present before team
+            name_tokens = tokens[:-1]
+            if name_tokens[-1] in suffixes:
+                name_tokens = name_tokens[:-1]
+            name = " ".join(name_tokens)
         else:
-            # No valid team detected
-            name = s
+            # No team detected
             team = None
+            name_tokens = tokens
+            if name_tokens[-1] in suffixes:
+                name_tokens = name_tokens[:-1]
+            name = " ".join(name_tokens)
 
         return pd.Series([name, team])
 
