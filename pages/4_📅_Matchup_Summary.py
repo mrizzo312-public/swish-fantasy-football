@@ -35,7 +35,7 @@ selected_league_name = league_ids[league_id]
 # ------------------------
 league, _, roster_to_owner = get_league_data(league_id)
 current_week = league.get("settings", {}).get("leg", 1)
-prev_week = max(current_week - 1, 1)
+prev_week = current_week - 1
 
 # ------------------------
 # Fetch previous week matchups
