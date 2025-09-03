@@ -83,7 +83,9 @@ default_idx = matchups["avg_power"].idxmax()
 selected_matchup_idx = st.selectbox(
     "Select Matchup",
     matchups.index.tolist(),
-    format_func=lambda idx: matchups.loc[idx, "Matchup"],
+    format_func=lambda idx: (
+        f"⭐ {matchups.loc[idx, 'Matchup']}" if idx == default_idx else matchups.loc[idx, 'Matchup']
+    ),
     index=default_idx
 )
 
